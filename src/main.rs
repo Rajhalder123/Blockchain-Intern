@@ -1,67 +1,51 @@
-use sha2::{Sha256, Digest};
-use chrono::Utc;
+mod block;
+mod mining;
+mod consensus;
 
-
-
-
-
-#[derive(Debug)]
-#[allow(dead_code)] 
-struct Block {
-    index: u32,
-    timestamp: String,
-    data: String,
-    previous_hash: String,
-    hash: String,
-    nonce: u64,
-}
-
-impl Block {
-    fn new(index: u32, data: String, previous_hash: String) -> Self {
-        let timestamp = Utc::now().to_rfc3339();
-        let mut nonce = 0;
-        let mut hash = Block::calculate_hash(index, &timestamp, &data, &previous_hash, nonce);
-
-        // Simple Proof of Work: repeat until hash starts with "00"
-        while &hash[..2] != "00" {
-            nonce += 1;
-            hash = Block::calculate_hash(index, &timestamp, &data, &previous_hash, nonce);
-        }
-
-        Block {
-            index,
-            timestamp,
-            data,
-            previous_hash,
-            hash,
-            nonce,
-        }
-    }
-
-    fn calculate_hash(index: u32, timestamp: &str, data: &str, previous_hash: &str, nonce: u64) -> String {
-        let mut hasher = Sha256::new();
-        hasher.update(index.to_string());
-        hasher.update(timestamp);
-        hasher.update(data);
-        hasher.update(previous_hash);
-        hasher.update(nonce.to_string());
-        let result = hasher.finalize();
-        format!("{:x}", result)
-    }
-}
+use block::Block;
+use mining::mine_block;
+use consensus::*;
 
 fn main() {
-    // Create genesis block
-    let genesis_block = Block::new(0, "Genesis Block".to_string(), "0".to_string());
+    println!("🚀 Blockchain Simulation");
 
-    // Create second block
-    let second_block = Block::new(1, "Second Block Data".to_string(), genesis_block.hash.clone());
+    // === BLOCKCHAIN with 3 linked blocks ===
+    let mut chain = vec![];
 
-    // Create third block
-    let third_block = Block::new(2, "Third Block Info".to_string(), second_block.hash.clone());
+    // Genesis
+    let mut block1 = Block::new(0, "Genesis Block".to_string(), "0".to_string());
+    block1 = mine_block(block1, 3);
+    chain.push(block1.clone());
 
-    // Print blocks
-    println!("\nBlock 1: {:#?}", genesis_block);
-    println!("\nBlock 2: {:#?}", second_block);
-    println!("\nBlock 3: {:#?}", third_block);
+    let mut block2 = Block::new(1, "Second Block".to_string(), block1.hash.clone());
+    block2 = mine_block(block2, 3);
+    chain.push(block2.clone());
+
+    let mut block3 = Block::new(2, "Third Block".to_string(), block2.hash.clone());
+    block3 = mine_block(block3, 3);
+    chain.push(block3.clone());
+
+    println!("\n🧱 Full Blockchain:");
+    for block in &chain {
+        println!("{:#?}", block);
+    }
+
+    // === DATA TAMPERING DEMO ===
+    println!("\n🔧 Tampering Block 1 data...");
+    let mut tampered = chain[1].clone();
+    tampered.data = "Hacked Data!".to_string();
+    tampered.hash = tampered.calculate_hash();
+
+    println!("\n🧪 Validity Check After Tampering:");
+    println!(
+        "Block 2 valid? {}\nBlock 3 valid? {}",
+        tampered.is_valid(),
+        chain[2].is_valid()
+    );
+
+    // === CONSENSUS MECHANISMS ===
+    println!("\n📊 Consensus Mechanism Simulation:");
+    simulate_pow();
+    simulate_pos();
+    simulate_dpos();
 }
